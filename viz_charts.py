@@ -1,105 +1,96 @@
-import json
 import numpy as np
 import matplotlib.pyplot as plt
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
+from common import select_and_load_json
 
-# File selection dialog
-Tk().withdraw()  # Hide the root Tkinter window
-file_path = askopenfilename(
-    title="Select JSON File",
-    filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
-)
-if not file_path:
-    raise FileNotFoundError("No file selected.")
+def visualize(data=None):
+    
+    # Extract events that include LLM metrics (accumulated_token_usage)
+    llm_events = []
+    for event in data:
+        llm_metrics = event.get("llm_metrics")
+        if llm_metrics and "accumulated_token_usage" in llm_metrics:
+            usage = llm_metrics["accumulated_token_usage"]
+            llm_events.append({
+                "id": event["id"],
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "cache_write_tokens": usage.get("cache_write_tokens", 0),
+                "cache_read_tokens": usage.get("cache_read_tokens", 0),
+            })
 
-# Load the selected JSON file
-with open(file_path, "r", encoding="utf-8") as f:
-    data = json.load(f)
+    # Sort events by ID for chronological order
+    llm_events.sort(key=lambda x: x["id"])
 
-# Extract events that include LLM metrics (accumulated_token_usage)
-llm_events = []
-for event in data:
-    llm_metrics = event.get("llm_metrics")
-    if llm_metrics and "accumulated_token_usage" in llm_metrics:
-        usage = llm_metrics["accumulated_token_usage"]
-        llm_events.append({
-            "id": event["id"],
-            "completion_tokens": usage.get("completion_tokens", 0),
-            "cache_write_tokens": usage.get("cache_write_tokens", 0),
-            "cache_read_tokens": usage.get("cache_read_tokens", 0),
-        })
+    # Prepare data arrays for plotting
+    ids = [str(evt["id"]) for evt in llm_events]
+    completion_tokens = np.array([evt["completion_tokens"] for evt in llm_events], dtype=float)
+    cache_write_tokens = np.array([evt["cache_write_tokens"] for evt in llm_events], dtype=float)
+    cache_read_tokens = np.array([evt["cache_read_tokens"] for evt in llm_events], dtype=float)
 
-# Sort events by ID for chronological order
-llm_events.sort(key=lambda x: x["id"])
+    x = np.arange(len(ids))
 
-# Prepare data arrays for plotting
-ids = [str(evt["id"]) for evt in llm_events]
-completion_tokens = np.array([evt["completion_tokens"] for evt in llm_events], dtype=float)
-cache_write_tokens = np.array([evt["cache_write_tokens"] for evt in llm_events], dtype=float)
-cache_read_tokens = np.array([evt["cache_read_tokens"] for evt in llm_events], dtype=float)
+    # Define cost rates in USD per token (per million tokens)
+    COST_PER_COMPLETION_TOKEN = 15.00 / 1000 / 1000
+    COST_PER_CACHE_WRITE_TOKEN = 3.75 / 1000 / 1000
+    COST_PER_CACHE_READ_TOKEN = 0.30 / 1000 / 1000
 
-x = np.arange(len(ids))
+    # Compute cost for each token type (in USD)
+    completion_cost = completion_tokens * COST_PER_COMPLETION_TOKEN
+    cache_write_cost = cache_write_tokens * COST_PER_CACHE_WRITE_TOKEN
+    cache_read_cost = cache_read_tokens * COST_PER_CACHE_READ_TOKEN
 
-# Define cost rates in USD per token (per million tokens)
-COST_PER_COMPLETION_TOKEN = 15.00 / 1000 / 1000
-COST_PER_CACHE_WRITE_TOKEN = 3.75 / 1000 / 1000
-COST_PER_CACHE_READ_TOKEN = 0.30 / 1000 / 1000
+    # Create two subplots: one for token counts and one for cost
+    fig, (ax_top, ax_bottom) = plt.subplots(nrows=2, ncols=1, figsize=(12, 8), sharex=True)
 
-# Compute cost for each token type (in USD)
-completion_cost = completion_tokens * COST_PER_COMPLETION_TOKEN
-cache_write_cost = cache_write_tokens * COST_PER_CACHE_WRITE_TOKEN
-cache_read_cost = cache_read_tokens * COST_PER_CACHE_READ_TOKEN
+    # ----- Top subplot: Token Usage -----
+    ax_top.bar(x, cache_read_tokens, color='skyblue', label='cache_read_tokens')
+    ax_top.bar(x, cache_write_tokens, bottom=cache_read_tokens, color='orange', label='cache_write_tokens')
+    ax_top.bar(x, completion_tokens, bottom=cache_read_tokens + cache_write_tokens, color='red', label='completion_tokens')
 
-# Create two subplots: one for token counts and one for cost
-fig, (ax_top, ax_bottom) = plt.subplots(nrows=2, ncols=1, figsize=(12, 8), sharex=True)
+    ax_top.set_ylabel("Tokens")
+    ax_top.set_title("LLM Token Usage (Top) vs Cost in USD (Bottom) by Event")
+    ax_top.legend(loc='upper left')
 
-# ----- Top subplot: Token Usage -----
-ax_top.bar(x, cache_read_tokens, color='skyblue', label='cache_read_tokens')
-ax_top.bar(x, cache_write_tokens, bottom=cache_read_tokens, color='orange', label='cache_write_tokens')
-ax_top.bar(x, completion_tokens, bottom=cache_read_tokens + cache_write_tokens, color='red', label='completion_tokens')
+    # ----- Bottom subplot: Cost -----
+    ax_bottom.bar(x, cache_read_cost, color='skyblue', label='cache_read_cost')
+    ax_bottom.bar(x, cache_write_cost, bottom=cache_read_cost, color='orange', label='cache_write_cost')
+    ax_bottom.bar(x, completion_cost, bottom=cache_read_cost + cache_write_cost, color='red', label='completion_cost')
 
-ax_top.set_ylabel("Tokens")
-ax_top.set_title("LLM Token Usage (Top) vs Cost in USD (Bottom) by Event")
-ax_top.legend(loc='upper left')
+    ax_bottom.set_ylabel("Cost (USD)")
+    ax_bottom.legend(loc='upper left')
+    ax_bottom.set_xlabel("Event ID")
+    ax_bottom.set_xticks(x)
+    ax_bottom.set_xticklabels(ids, rotation=45)
 
-# ----- Bottom subplot: Cost -----
-ax_bottom.bar(x, cache_read_cost, color='skyblue', label='cache_read_cost')
-ax_bottom.bar(x, cache_write_cost, bottom=cache_read_cost, color='orange', label='cache_write_cost')
-ax_bottom.bar(x, completion_cost, bottom=cache_read_cost + cache_write_cost, color='red', label='completion_cost')
+    plt.tight_layout()
+    plt.show()
 
-ax_bottom.set_ylabel("Cost (USD)")
-ax_bottom.legend(loc='upper left')
-ax_bottom.set_xlabel("Event ID")
-ax_bottom.set_xticks(x)
-ax_bottom.set_xticklabels(ids, rotation=45)
+    # Compute total tokens and costs
+    total_completion_tokens = np.sum(completion_tokens)
+    total_cache_write_tokens = np.sum(cache_write_tokens)
+    total_cache_read_tokens = np.sum(cache_read_tokens)
 
-plt.tight_layout()
-plt.show()
+    total_completion_cost = np.sum(completion_cost)
+    total_cache_write_cost = np.sum(cache_write_cost)
+    total_cache_read_cost = np.sum(cache_read_cost)
 
-# Compute total tokens and costs
-total_completion_tokens = np.sum(completion_tokens)
-total_cache_write_tokens = np.sum(cache_write_tokens)
-total_cache_read_tokens = np.sum(cache_read_tokens)
+    # Create two additional pie charts
+    fig, (ax_pie_tokens, ax_pie_costs) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-total_completion_cost = np.sum(completion_cost)
-total_cache_write_cost = np.sum(cache_write_cost)
-total_cache_read_cost = np.sum(cache_read_cost)
+    # ----- Pie chart: Token Distribution -----
+    token_labels = ['Completion Tokens', 'Cache Write Tokens', 'Cache Read Tokens']
+    token_values = [total_completion_tokens, total_cache_write_tokens, total_cache_read_tokens]
+    ax_pie_tokens.pie(token_values, labels=token_labels, autopct='%1.1f%%', startangle=90, colors=['red', 'orange', 'skyblue'])
+    ax_pie_tokens.set_title("Token Distribution")
 
-# Create two additional pie charts
-fig, (ax_pie_tokens, ax_pie_costs) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+    # ----- Pie chart: Cost Distribution -----
+    cost_labels = ['Completion Cost', 'Cache Write Cost', 'Cache Read Cost']
+    cost_values = [total_completion_cost, total_cache_write_cost, total_cache_read_cost]
+    ax_pie_costs.pie(cost_values, labels=cost_labels, autopct='%1.1f%%', startangle=90, colors=['red', 'orange', 'skyblue'])
+    ax_pie_costs.set_title("Cost Distribution (USD)")
 
-# ----- Pie chart: Token Distribution -----
-token_labels = ['Completion Tokens', 'Cache Write Tokens', 'Cache Read Tokens']
-token_values = [total_completion_tokens, total_cache_write_tokens, total_cache_read_tokens]
-ax_pie_tokens.pie(token_values, labels=token_labels, autopct='%1.1f%%', startangle=90, colors=['red', 'orange', 'skyblue'])
-ax_pie_tokens.set_title("Token Distribution")
+    plt.tight_layout()
+    plt.show()
 
-# ----- Pie chart: Cost Distribution -----
-cost_labels = ['Completion Cost', 'Cache Write Cost', 'Cache Read Cost']
-cost_values = [total_completion_cost, total_cache_write_cost, total_cache_read_cost]
-ax_pie_costs.pie(cost_values, labels=cost_labels, autopct='%1.1f%%', startangle=90, colors=['red', 'orange', 'skyblue'])
-ax_pie_costs.set_title("Cost Distribution (USD)")
 
-plt.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    visualize(data = select_and_load_json())
