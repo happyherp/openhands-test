@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from common import select_and_load_json, COST_PER_COMPLETION_TOKEN, COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN
+from by_type import create_summary_rows
+from process_events import process_events
 
 def visualize(data=None):
     
@@ -82,6 +84,23 @@ def visualize(data=None):
     cost_values = [total_completion_cost, total_cache_write_cost, total_cache_read_cost]
     ax_pie_costs.pie(cost_values, labels=cost_labels, autopct='%1.1f%%', startangle=90, colors=['red', 'orange', 'skyblue'])
     ax_pie_costs.set_title("Cost Distribution (USD)")
+
+    plt.tight_layout()
+    plt.show()
+
+    # ----- Additional Pie Chart: Event Cost by Type -----
+    # Create summary rows using the reusable function
+    table_rows = process_events(data)
+    summary_rows = create_summary_rows(table_rows)
+
+    # Extract data for the pie chart
+    event_types = [row["subt"] for row in summary_rows]
+    event_costs = [row["sum_event_cost"] for row in summary_rows]
+
+    # Create the pie chart
+    fig, ax_event_cost = plt.subplots(figsize=(8, 6))
+    ax_event_cost.pie(event_costs, labels=event_types, autopct='%1.1f%%', startangle=90)
+    ax_event_cost.set_title("Event Cost Distribution by Type (USD). Excludes cache-read cost")
 
     plt.tight_layout()
     plt.show()
