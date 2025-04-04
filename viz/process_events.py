@@ -1,19 +1,41 @@
 from datetime import datetime, timedelta
 from common import COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN, COST_PER_COMPLETION_TOKEN
 
+def extract_llm_usage(event):
+    """Extract LLM usage object from an event."""
+    llm_usage = (event
+        .get("tool_call_metadata", {}).get("model_response", {}).get("usage", {}))
+    if llm_usage == {}:
+        llm_usage = event.get("llm_metrics", {}).get("accumulated_token_usage", {})
+    return llm_usage
+
 def process_events(data):
     """Process events and return a list of processed event objects."""
     table_rows = []
     previous_event_with_llm_usage = None
 
     for event in data:
-        cause_event_id = event.get("cause")
-        if cause_event_id is not None or event.get("action") == "condensation":
-            # Extract timestamp
-            current_timestamp = event.get("timestamp", "")
-            if current_timestamp:
-                current_timestamp = datetime.fromisoformat(current_timestamp)
 
+        current_timestamp = event.get("timestamp", "")
+        if current_timestamp:
+            current_timestamp = datetime.fromisoformat(current_timestamp)
+
+        # Find the next event within 5 minutes with non-empty llm_usage
+        next_llm_usage = {}
+        for next_event in data:
+            next_event_timestamp = next_event.get("timestamp", "")
+            if next_event_timestamp:
+                next_event_timestamp = datetime.fromisoformat(next_event_timestamp)
+            if current_timestamp < next_event_timestamp <= current_timestamp + timedelta(minutes=5):
+                next_llm_usage = extract_llm_usage(next_event)
+                if next_llm_usage != {}:
+                    next_llm_usage = extract_llm_usage(next_event)
+                    break
+        llm_usage = extract_llm_usage(event)
+
+        cause_event_id = event.get("cause")
+        if ((cause_event_id is not None or event.get("action") == "condensation") 
+            and next_llm_usage != {} and llm_usage != {}):
             # Check if the previous event with llm_usage exists and is within 5 minutes
             special_note = ""  # Initialize special column
             if previous_event_with_llm_usage:
@@ -32,18 +54,11 @@ def process_events(data):
                 message += f" (Command: {args['command']})"
             subt = event.get("observation", event.get("action", "UNKNOWN-TYPE"))
 
-            # Extract LLM usage object
-            llm_usage = (event
-                .get("tool_call_metadata", {}).get("model_response", {}).get("usage", {}))
-            if llm_usage == {}:
-                llm_usage = event.get("llm_metrics", {}).get("accumulated_token_usage", {})
-            cache_read_input_tokens = llm_usage.get("cache_read_input_tokens", 0)
-            cache_creation_input_tokens = llm_usage.get("cache_creation_input_tokens", 0)
             completion_tokens = llm_usage.get("completion_tokens", 0)
 
-            # If llm_usage exists, update the previous event with llm_usage
-            if llm_usage:
-                previous_event_with_llm_usage = event
+            #We only see the input on the next interaction with the AI.
+            cache_read_input_tokens = next_llm_usage.get("cache_read_input_tokens", 0)
+            cache_creation_input_tokens = next_llm_usage.get("cache_creation_input_tokens", 0)
 
             # Calculate costs
             cache_read_cost = cache_read_input_tokens * COST_PER_CACHE_READ_TOKEN
@@ -68,4 +83,8 @@ def process_events(data):
                 "total_cost": f"${total_cost:.2f}",
                 "special": special_note
             })
+
+            if llm_usage != {}:
+                previous_event_with_llm_usage = event
+
     return table_rows

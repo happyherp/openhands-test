@@ -1,4 +1,4 @@
-from common import select_and_load_json, COST_PER_COMPLETION_TOKEN
+from common import select_and_load_json, COST_PER_COMPLETION_TOKEN, save_and_open_html
 import webbrowser
 import os
 
@@ -92,15 +92,8 @@ def visualize(data=None):
     </html>
     """
 
-    # Save the HTML to a file in the output directory
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "completion_cost.html")
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    # Open the HTML file in the default web browser
-    webbrowser.open(output_file)
+    # Save and open the HTML file
+    save_and_open_html(html_content, "completion_cost.html")
 
 if __name__ == "__main__":
     # Load the selected JSON file

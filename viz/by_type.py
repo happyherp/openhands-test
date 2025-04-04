@@ -1,4 +1,4 @@
-from common import select_and_load_json
+from common import select_and_load_json, save_and_open_html
 from process_events import process_events
 import webbrowser
 import os
@@ -144,15 +144,8 @@ def visualize(data=None):
     # Generate HTML content for the summary table
     html_content = generate_html_summary(table_rows)
 
-    # Save the HTML to a file in the output directory
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "by_type.html")
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    # Open the HTML file in the default web browser
-    webbrowser.open(output_file)
+    # Save and open the HTML file
+    save_and_open_html(html_content, "by_type.html")
 
 if __name__ == "__main__":
     # Load the selected JSON file

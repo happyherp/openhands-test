@@ -1,4 +1,4 @@
-from common import select_and_load_json, COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN, COST_PER_COMPLETION_TOKEN
+from common import select_and_load_json, COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN, COST_PER_COMPLETION_TOKEN, save_and_open_html
 import webbrowser
 import os
 
@@ -60,7 +60,7 @@ def visualize(data=None):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Input Cost Visualizer</title>
+        <title>All Events</title>
         <style>
             table {{
                 width: 100%;
@@ -89,7 +89,7 @@ def visualize(data=None):
         </style>
     </head>
     <body>
-        <h1>Input Cost Visualizer</h1>
+        <h1>All Events</h1>
         <table>
             <thead>
                 <tr>
@@ -116,15 +116,8 @@ def visualize(data=None):
     </html>
     """
 
-    # Save the HTML to a file in the output directory
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "events.html")
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    # Open the HTML file in the default web browser
-    webbrowser.open(output_file)
+    # Save and open the HTML file
+    save_and_open_html(html_content, "events.html")
 
 if __name__ == "__main__":
     # Load the selected JSON file

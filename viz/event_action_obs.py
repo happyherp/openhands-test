@@ -1,9 +1,5 @@
-from common import select_and_load_json, COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN, COST_PER_COMPLETION_TOKEN
-from process_events import process_events  # Import the function
-import webbrowser
-import os
-from datetime import datetime, timedelta
-from collections import defaultdict
+from common import *
+from process_events import process_events
 
 def generate_html(table_rows):
     """Generate HTML content from processed event objects."""
@@ -90,15 +86,7 @@ def visualize(data=None):
     # Generate HTML content for the main table
     html_content = generate_html(table_rows)
 
-    # Save the HTML to a file in the output directory
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "event_action_obs.html")
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    # Open the HTML file in the default web browser
-    webbrowser.open(output_file)
+    save_and_open_html(html_content, "event_action_obs.html")
 
 if __name__ == "__main__":
     # Load the selected JSON file
