@@ -1,6 +1,6 @@
 from common import select_and_load_json
 from viz_charts import visualize as visualize_charts
-from viz_table import visualize as visualize_table
+from completion_cost import visualize as visualize_completion_cost
 
 if __name__ == "__main__":
     # Load the selected JSON file
@@ -8,4 +8,4 @@ if __name__ == "__main__":
 
     # Run all visualizers
     visualize_charts(data)
-    visualize_table(data)
+    visualize_completion_cost(data)

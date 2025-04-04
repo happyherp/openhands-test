@@ -1,9 +1,9 @@
 from common import select_and_load_json
 import webbrowser
+import os
 
 def visualize(data=None):
-
-
+    """Visualize completion cost data."""
     # Define cost rates in USD per token (per million tokens)
     COST_PER_COMPLETION_TOKEN = 15.00 / 1000 / 1000
 
@@ -12,7 +12,7 @@ def visualize(data=None):
     for event in data:
         llm_metrics = event.get("llm_metrics", {}).get("accumulated_token_usage", {})
         if "completion_tokens" in llm_metrics:
-            message = event.get("message", "")[:60]
+            message = event.get("message", "")
             args = event.get("args", {})
             if "path" in args:
                 message += f" (Path: {args['path']})"
@@ -25,7 +25,7 @@ def visualize(data=None):
                 event.get("timestamp", ""),
                 event.get("source", ""),
                 event.get("action", ""),
-                message,
+                message[:60],
                 completion_tokens,
                 f"${cost:.6f}"
             ))
@@ -56,7 +56,7 @@ def visualize(data=None):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Event Visualizer</title>
+        <title>Completion Cost Visualizer</title>
         <style>
             table {{
                 width: 100%;
@@ -73,7 +73,7 @@ def visualize(data=None):
         </style>
     </head>
     <body>
-        <h1>Event Visualizer</h1>
+        <h1>Completion Cost Visualizer</h1>
         <table>
             <thead>
                 <tr>
@@ -94,15 +94,17 @@ def visualize(data=None):
     </html>
     """
 
-    # Save the HTML to a file
-    output_file = "event_visualizer.html"
+    # Save the HTML to a file in the output directory
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "completion_cost.html")
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_content)
 
     # Open the HTML file in the default web browser
     webbrowser.open(output_file)
 
-if (__name__ == "__main__"):
+if __name__ == "__main__":
     # Load the selected JSON file
     data = select_and_load_json()
     visualize(data)
