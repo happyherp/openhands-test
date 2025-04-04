@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
-from common import select_and_load_json
+from common import select_and_load_json, COST_PER_COMPLETION_TOKEN, COST_PER_CACHE_WRITE_TOKEN
 import matplotlib.pyplot as plt
 
 def visualize(data=None):
@@ -20,10 +20,6 @@ def visualize(data=None):
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "cache_write_tokens": usage.get("cache_write_tokens", 0),
             })
-
-    # Define cost rates in USD per token (per million tokens)
-    COST_PER_COMPLETION_TOKEN = 15.00 / 1000 / 1000
-    COST_PER_CACHE_WRITE_TOKEN = 3.75 / 1000 / 1000
 
     # Compute total cost per event for cache-write and completion
     for event in llm_events:

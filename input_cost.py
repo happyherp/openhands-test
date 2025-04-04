@@ -1,47 +1,43 @@
-from common import select_and_load_json, COST_PER_COMPLETION_TOKEN
+from common import select_and_load_json, COST_PER_CACHE_WRITE_TOKEN
 import webbrowser
 import os
 
 def visualize(data=None):
-    """Visualize completion cost data."""
+    """Visualize input cost data."""
 
     # Prepare data for the table
     table_rows = []
     for event in data:
-        llm_metrics = event.get("llm_metrics", {}).get("accumulated_token_usage", {})
-        if "completion_tokens" in llm_metrics:
+        obs = event.get("observation", None)
+        new_input_tokens = event.get("tool_call_metadata", {})\
+            .get("model_response", {})\
+            .get("usage", {}).get("cache_creation_input_tokens")
+        if obs is not None and new_input_tokens is not None:  # Include cache creation tokens
             message = event.get("message", "")
             args = event.get("args", {})
             if "path" in args:
                 message += f" (Path: {args['path']})"
             if "command" in args:
                 message += f" (Command: {args['command']})"
-            completion_tokens = llm_metrics.get("completion_tokens", 0)
-            cost = completion_tokens * COST_PER_COMPLETION_TOKEN
+            cache_creation_cost = new_input_tokens * COST_PER_CACHE_WRITE_TOKEN
             table_rows.append((
                 event.get("id", ""),
                 event.get("timestamp", ""),
                 event.get("source", ""),
-                event.get("action", ""),
+                obs,
                 message[:60],
-                completion_tokens,
-                f"${cost:.6f}"
+                new_input_tokens,
+                f"${cache_creation_cost:.6f}"
             ))
 
-    # Sort rows by completion tokens in descending order
+    # Sort rows by input tokens in descending order
     table_rows.sort(key=lambda x: x[5], reverse=True)
 
-    # Generate HTML rows
+    # Generate HTML rows dynamically based on the length of each row
     html_rows = [
         f"""
         <tr>
-            <td>{row[0]}</td>
-            <td>{row[1]}</td>
-            <td>{row[2]}</td>
-            <td>{row[3]}</td>
-            <td>{row[4]}</td>
-            <td>{row[5]}</td>
-            <td>{row[6]}</td>
+            {''.join(f'<td>{cell}</td>' for cell in row)}
         </tr>
         """
         for row in table_rows
@@ -54,7 +50,7 @@ def visualize(data=None):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Completion Cost Visualizer</title>
+        <title>Input Cost Visualizer</title>
         <style>
             table {{
                 width: 100%;
@@ -71,17 +67,17 @@ def visualize(data=None):
         </style>
     </head>
     <body>
-        <h1>Completion Cost Visualizer</h1>
+        <h1>Input Cost Visualizer</h1>
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Timestamp</th>
                     <th>Source</th>
-                    <th>Action</th>
+                    <th>Observation</th>
                     <th>Message</th>
-                    <th>Completion Tokens</th>
-                    <th>Cost</th>
+                    <th>Cache Creation Tokens</th>
+                    <th>Cache Creation Cost</th>
                 </tr>
             </thead>
             <tbody>
@@ -95,7 +91,7 @@ def visualize(data=None):
     # Save the HTML to a file in the output directory
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "completion_cost.html")
+    output_file = os.path.join(output_dir, "input_cost.html")
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_content)
 

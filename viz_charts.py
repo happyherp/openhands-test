@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from common import select_and_load_json
+from common import select_and_load_json, COST_PER_COMPLETION_TOKEN, COST_PER_CACHE_WRITE_TOKEN, COST_PER_CACHE_READ_TOKEN
 
 def visualize(data=None):
     
@@ -27,11 +27,6 @@ def visualize(data=None):
     cache_read_tokens = np.array([evt["cache_read_tokens"] for evt in llm_events], dtype=float)
 
     x = np.arange(len(ids))
-
-    # Define cost rates in USD per token (per million tokens)
-    COST_PER_COMPLETION_TOKEN = 15.00 / 1000 / 1000
-    COST_PER_CACHE_WRITE_TOKEN = 3.75 / 1000 / 1000
-    COST_PER_CACHE_READ_TOKEN = 0.30 / 1000 / 1000
 
     # Compute cost for each token type (in USD)
     completion_cost = completion_tokens * COST_PER_COMPLETION_TOKEN
